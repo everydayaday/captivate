@@ -6,7 +6,8 @@
    -> data/dual_ber.png, data/dual_ber.csv
 
 (a) FSK 를 받는 동안 S1 (bit 1 주파수) 과 P (bit 0 주파수) 의 count - 매 비트에 둘 중 하나가 출렁인다
-(b) 태블릿 BER: OOK 한 전극 / OOK 두 전극(같은 주파수, 흔들림 합) / FSK 한 전극 / FSK 두 전극(두 주파수, 흔들림 차)
+(b) 태블릿 BER, 두 전극 수신만: OOK(같은 주파수, 흔들림 합) / FSK(두 주파수, 흔들림 차)
+    (S1 하나로 받은 결과도 result.json 의 best.single 에 있다)
     블라인드 판정, 옅은 띠 = 95 % Wilson 구간, 속 빈 점 = 오류 0 (0.5/N)
 """
 import csv, glob, json, math, os, sys
@@ -20,10 +21,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [HERE, os.path.join(os.path.dirname(HERE), "transceiver")]
 import cap_ook_tx as TX
 matplotlib.rcParams["font.family"] = ["DejaVu Sans"]
-STYLE = {("ook2", "single"): ("OOK, one electrode (S1)", "tab:red", "--"),
-         ("ook2", "dual"): ("OOK, two electrodes, same frequency (S1 + P)", "tab:red", "-"),
-         ("fsk2", "single"): ("FSK, one electrode (S1)", "tab:blue", "--"),
-         ("fsk2", "dual"): ("FSK, two electrodes, one per tone (S1 - P)", "tab:blue", "-")}
+STYLE = {("ook2", "dual"): ("OOK: S1 and P both on the bit-1 tone (S1 + P)", "tab:red", "-"),
+         ("fsk2", "dual"): ("FSK: S1 on the bit-1 tone, P on the bit-0 tone (S1 - P)", "tab:blue", "-")}
 
 
 def wilson(e, n, z=1.96):
@@ -112,7 +111,8 @@ def main():
     a.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
     a.grid(alpha=0.3, which="both"); a.legend(fontsize=8, loc="upper left")
     sc = np.median([r["scan_hz"] for r in runs])
-    a.set_title(f"(b) Tablet BER (scan {sc:.0f} Hz). Shaded = 95% Wilson, open = 0 errors", fontsize=10, loc="left")
+    a.set_title(f"(b) Tablet BER, two-electrode receivers (scan {sc:.0f} Hz). Shaded = 95% Wilson, open = 0 errors",
+                fontsize=10, loc="left")
     f1 = np.median([r["f1_hz"] for r in runs]) / 1e3
     f0s = [r["f0_hz"] for r in runs if r.get("f0_hz")]
     fig.suptitle(f"Letting the tablet hear FSK's '0': bit 1 = {f1:.2f} kHz (S1 tuned to 168.0 kHz), "
