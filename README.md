@@ -1,383 +1,400 @@
-# CapTIvate (MSP-CAPT-FR2633 + BSWP 패널) 작업공간
+# CapTIvate (MSP-CAPT-FR2633 + BSWP panel) workspace
 
-TI의 정전용량 터치 개발 키트예요. 공장에서 들어 있는 데모 펌웨어를 그대로 두고, 패널 전극 16개의 원시 값을 맥에서 실시간 **정전용량 지도**로 봐요.
-TI의 CapTIvate Design Center는 필요 없어요.
+TI's capacitive-touch development kit. The factory demo firmware is left as is; the raw values of the panel's 16 electrodes are streamed to a Mac and shown as a real-time **capacitance map**.
+TI's CapTIvate Design Center is not needed.
 
-## 연결 (2026-10-14 기준 이 상태로 동작 확인)
+The same board is also used as a **touchscreen receiver for a stent transmitter**: a stent driven by the TeensyTRX transceiver lies on the panel, and the scripts here measure the bit error rate (BER) of that link.
+
+## Hardware connection (verified working as of 2026-10-14)
 
 ```
    ┌──────────────────────┐   ┌──────────────────────┐   ┌──────────────────────┐
-   │  BSWP 터치 패널        │   │  FR2633 MCU 보드       │   │  PGMR 프로그래머         │
-   │  (동판 전극만 있음)     │══>│  (칩, LED1·LED2,      │══>│  (굽기 + PC 통신 다리)   │──USB──> Mac
-   │  버튼 8·슬라이더·휠·근접 │   │   리셋 버튼)           │   │  초록 LED 켜짐/깜빡     │
+   │  BSWP touch panel      │   │  FR2633 MCU board      │   │  PGMR programmer       │
+   │  (copper electrodes    │══>│  (MCU, LED1/LED2,      │══>│  (flashing + PC comms  │──USB──> Mac
+   │   only)                │   │   reset button)        │   │   bridge)              │
+   │  8 buttons, slider,    │   │                        │   │  green LED on/blinking │
+   │  wheel, proximity ring │   │                        │   │                        │
    └──────────────────────┘   └──────────────────────┘   └──────────────────────┘
-        흰 커넥터로 꽂음              20핀 커넥터로 꽂음            마이크로 USB 케이블
+        white connector             20-pin connector             micro-USB cable
 ```
 
-맥에서는 USB 장치 두 개가 보여요.
-- `MSP Tools Driver`: 펌웨어를 굽는 쪽이에요.
-- `MCU COMM HID to Serial Bridge`: 데이터가 오는 쪽이에요. 드라이버 없이 HID로 잡혀요.
+The Mac sees two USB devices:
+- `MSP Tools Driver`: used for flashing firmware.
+- `MCU COMM HID to Serial Bridge`: the data path. It enumerates as HID, so no driver is needed.
 
-## 실행
+## Running the capacitance map
 
-Finder에서 **`run_bswp_map.command` 더블클릭**하면 돼요. 터미널에서 `./run_bswp_map.command`로 실행해도 같아요.
+Double-click **`run_bswp_map.command`** in Finder, or run `./run_bswp_map.command` in a terminal. It uses the Python in `~/.venvs/galvanic`.
 
-1. 창이 뜨면 위쪽에 `3 초 뒤 - 패널에서 손을 떼세요`가 떠요. 이건 켤 때 기준선을 한 번 잡는 거예요. 손을 패널에서 떼 주세요.
-2. 그다음 **패널 위로 손을 한 번 가까이 가져가요.** 데모 펌웨어는 손이 없으면 자고 있어서, 이 동작이 보드를 깨워요. 손을 안 대도 최대 약 50초 안에는 저절로 깨요.
-3. 한 번 깨어나면 **그 뒤로는 손을 떼도 계속 30 Hz 실시간으로** 들어와요. `보드 계속 깨워 두기`가 켜져 있으면(기본값) 그래요. 아래 상태 줄에 `보드: 계속 깨움`이 보이면 정상이에요.
-   - 창을 닫았다 다시 열어도 보드는 계속 깨어 있어요. 데모 원래 동작(손이 없으면 절전)으로 돌리고 싶으면 체크를 끄세요. MCU 보드의 RESET 버튼을 누르거나 USB를 뺐다 꽂아도 돼요.
-   - 상태 줄의 `화면 .. fps`는 실제로 다시 그린 횟수예요. 보통 25~30이에요.
-4. **손을 안 댔는데 전극에 색이 남아 있거나 노랑·흰 테두리가 남아 있으면 기준선이 틀어진 거예요.** 아래에 ⚠ 경고도 떠요. 이때는 **[기준선 다시 잡기]**를 누르고 3초 안에 손을 떼세요.
+The GUI labels are in Korean; English translations are given in parentheses below.
 
-### 해볼 동작
-| 동작 | 화면에서 보이는 것 |
+1. When the window opens, the top shows `3 초 뒤 - 패널에서 손을 떼세요` ("in 3 s, take your hand off the panel"). This captures the baseline once at start-up, so keep your hand away from the panel.
+2. Then **bring your hand close to the panel once.** The demo firmware sleeps when no hand is present, and this wakes it up. Even without a hand it wakes up on its own within about 50 s.
+3. Once awake, data keeps arriving **in real time at 30 Hz even after you take your hand away**, as long as `보드 계속 깨워 두기` ("keep the board awake") is checked (the default). The status line at the bottom shows `보드: 계속 깨움` ("board: kept awake") when this works.
+   - The board stays awake even if you close and reopen the window. To return to the demo's original behaviour (sleep when no hand is present), uncheck the box, press RESET on the MCU board, or unplug and replug USB.
+   - `화면 .. fps` in the status line is the actual redraw rate, normally 25-30.
+4. **If an electrode stays coloured, or keeps a yellow or white outline while nothing is touching it, the baseline is off.** A ⚠ warning also appears at the bottom. Press **[기준선 다시 잡기]** ("re-capture baseline") and take your hand away within 3 s.
+
+### Things to try
+| Action | What you see |
 |---|---|
-| 손바닥을 패널 위 3~5 cm에 띄우기 | 바깥 **근접 링 P**가 먼저 주황으로 짙어지고 테두리가 노랑(근접)으로 바뀌어요. 손을 내릴수록 숫자가 커져요 |
-| 버튼 하나 누르기 | 그 원이 빨개지고 **흰 테두리**(터치)가 생겨요. 아래 줄에 `주 버튼 N`이 떠요 |
-| 버튼 두 개 동시에 누르기 | 두 개 다 흰 테두리가 생겨요(멀티터치). 다만 `주 버튼`은 더 센 하나만 가리켜요 |
-| 두 버튼 사이 경계를 누르기 | 양쪽이 반반 변해요. 주 버튼이 어느 쪽인지 비교해 볼 만해요 |
-| 슬라이더를 왼쪽에서 오른쪽으로 쓸기 | S0→S1→S2→S3→S0 순서로 색이 옮겨가요. ▼ 표시가 위치(0~999)를 따라가요 |
-| 휠을 한 바퀴 돌리기 | W0→W1→W2가 차례로 변해요. ● 표시와 가운데 숫자(0~99)가 따라가요 |
-| 종이나 장갑 위로 누르기, 젖은 손가락 | 변화량 크기가 어떻게 달라지는지 봐요 |
+| Hover a palm 3-5 cm above the panel | The outer **proximity ring P** turns orange first and its outline turns yellow (proximity). The number grows as the hand gets closer |
+| Press one button | That circle turns red and gets a **white outline** (touch). The bottom line shows `주 버튼 N` ("dominant button N") |
+| Press two buttons at once | Both get a white outline (multi-touch), but the dominant button points only at the stronger one |
+| Press on the boundary between two buttons | Both change by about half. Worth checking which one is reported as dominant |
+| Swipe the slider left to right | The colour moves S0→S1→S2→S3→S0. The ▼ marker follows the position (0-999) |
+| Turn once around the wheel | W0→W1→W2 change in turn. The ● marker and the number in the centre (0-99) follow |
+| Press through paper or a glove, or with a wet finger | See how the size of the change differs |
 
-### 화면 읽는 법
-- **색 = (LTA − count) / LTA [%]**
-  - count는 이번 측정값이에요.
-  - LTA는 보드가 들고 있는 장기 평균(기준선)이에요.
-  - 이 패널은 전부 자기용량(self-capacitance) 전극이라, 손가락이 닿으면 count가 기준선 아래로 내려가서 값이 양수가 돼요.
-- 기준선은 대략 이 정도예요: 버튼 ≈ 248, 슬라이더 ≈ 598, 휠 ≈ 470~496, 근접 링 ≈ 779 카운트. 버튼에서 1카운트는 0.4%예요.
-- **흰 테두리**는 보드가 터치로 판정했다는 뜻이고, **노란 테두리**는 근접으로 판정했다는 뜻이에요. 둘 다 보드 펌웨어가 정한 임계값 기준이에요.
-- 오른쪽 그래프는 최근 10초의 변화량이에요. 위는 버튼 1~8, 아래는 슬라이더·휠·근접 링이에요.
-- 색 범위는 기본이 `자동`이고, 위 메뉴에서 고정값으로 바꿀 수 있어요.
-- **색 기준 → `터치 기준 대비`**로 바꾸면 각 전극을 `변화량 ÷ 그 전극의 터치 판정선`으로 칠해요. 1이 되는 순간 보드가 터치로 판정해요. 근접 링처럼 원래 크게 변하는 전극에 색이 묻히지 않아요.
-- 오른쪽 그래프의 **점선이 터치 판정선**이에요. 보드에서 직접 읽은 값이고, 실측은 아래와 같아요.
+### Reading the display
+- **Colour = (LTA − count) / LTA [%]**
+  - count is the current measurement.
+  - LTA is the long-term average (baseline) kept by the board.
+  - All electrodes on this panel are self-capacitance electrodes, so a finger pulls the count below the baseline and the value becomes positive.
+- Typical baselines: buttons ≈ 248, slider ≈ 598, wheel ≈ 470-496, proximity ring ≈ 779 counts. On a button, 1 count is 0.4 %.
+- A **white outline** means the board decided "touch"; a **yellow outline** means "proximity". Both use the thresholds set in the board firmware.
+- The plots on the right show the last 10 s of change: buttons 1-8 on top, slider, wheel and proximity ring at the bottom.
+- The colour range defaults to `자동` (auto) and can be fixed from the menu at the top.
+- Setting the **colour reference to `터치 기준 대비`** ("relative to touch threshold") colours each electrode as `change ÷ that electrode's touch threshold`. The board reports a touch the moment this reaches 1. Electrodes that naturally change a lot, such as the proximity ring, then no longer drown out the others.
+- The **dotted lines in the plots on the right are the touch thresholds**, read directly from the board. Measured values:
 
-| 전극 | 터치 판정 (LTA 대비 내려간 정도) | 근접 판정 |
+| Electrode | Touch threshold (drop relative to LTA) | Proximity threshold |
 |---|---|---|
-| 버튼 1~8 | 7.8% (≈19 카운트) | 10 카운트 (4%) |
-| 슬라이더 S0~S3 | 14~15% | 20 카운트 (3.3%) |
-| 휠 W0~W2 | 16% | 20 카운트 (4%) |
-| 근접 링 P | 10% | 12 카운트 (1.5%) |
+| Buttons 1-8 | 7.8 % (≈19 counts) | 10 counts (4 %) |
+| Slider S0-S3 | 14-15 % | 20 counts (3.3 %) |
+| Wheel W0-W2 | 16 % | 20 counts (4 %) |
+| Proximity ring P | 10 % | 12 counts (1.5 %) |
 
-  버튼은 손가락 끝으로 원을 거의 다 덮어야 7.8%를 넘어요. 손톱이나 끝만 살짝 대면 2~4%에서 멈춰서 터치로 안 잡혀요.
+  A button only exceeds 7.8 % when the fingertip covers almost the whole circle. A fingernail or just the tip stops at 2-4 % and is not detected as a touch.
 
-### 기록
-**[기록]**을 누르면 `data/bswp_<날짜_시각>.csv`에 스캔마다 한 줄씩 쌓여요. 다시 누르면 멈춰요. 열은 아래와 같아요.
+### Recording
+Press **[기록]** ("record") to append one row per scan to `data/bswp_<date_time>.csv`. Press it again to stop. Columns:
 - `t_unix`
-- 전극 16개마다 `<이름>_count`, `<이름>_lta`, `<이름>_touch`, `<이름>_prox`
-  - 이름: `B1`~`B8`, `S0`~`S3`, `W0`~`W2`, `P`
-- `keypad_dominant`: 0부터 세요. 버튼 번호는 여기에 +1을 하면 돼요
-- `slider_pos`, `wheel_pos`: 터치가 없으면 빈칸이에요
+- For each of the 16 electrodes: `<name>_count`, `<name>_lta`, `<name>_touch`, `<name>_prox`
+  - Names: `B1`-`B8`, `S0`-`S3`, `W0`-`W2`, `P`
+- `keypad_dominant`: zero-based. Add 1 to get the button number
+- `slider_pos`, `wheel_pos`: empty when there is no touch
 - `slider_res`, `wheel_res`
-- `keypad_status`, `prox_status`, `slider_status`, `wheel_status`: 상태 바이트예요. 비트 0은 터치, 1은 이전 터치, 2는 근접, 3은 검출, 4는 음의 터치, 5는 잡음, 6은 최대 카운트 오류, 7은 보정 오류예요.
+- `keypad_status`, `prox_status`, `slider_status`, `wheel_status`: status bytes. Bit 0 touch, 1 previous touch, 2 proximity, 3 detect, 4 negative touch, 5 noise, 6 max-count error, 7 calibration error.
 
-## 잘 안 될 때
-| 증상 | 원인과 해결 |
+## Troubleshooting
+| Symptom | Cause and fix |
 |---|---|
-| 손을 안 댔는데 슬라이더·휠 등이 계속 켜져 있어요 (아래에 ⚠ 경고) | 기준선(LTA)이 틀어진 거예요. 보드는 전원을 켤 때 기준선을 잡아요. 그 순간 손이 패널 근처에 있었거나 그 뒤에 패널을 옮기면(노트북 옆 등) 기준선이 틀어져요. 그리고 근접·터치 상태에서는 기준선 갱신을 멈춰서(halt) 저절로 풀리는 데 2분 넘게 걸려요. → **[기준선 다시 잡기]**를 누르고 손을 떼세요 |
-| 버튼을 눌러도 흰 테두리가 안 생겨요 | 색 기준을 `터치 기준 대비`로 바꾸고 눌러 보세요. 1 근처까지 가는지 봐요. 0.3~0.5에서 멈추면 손가락이 원을 덜 덮은 거예요. 아니면 누르는 동안 기준선이 함께 틀어진 거예요 → 기준선 다시 잡기 |
-| `아직 데이터 없음`에서 안 바뀌어요 | 보드가 자고 있는 거예요. 패널 위로 손을 가져가면 깨어나요. 손을 안 대도 최대 약 50초 안에 깨요. 깨어난 뒤로는 계속 실시간이에요 |
-| 손을 떼면 1초 뒤 화면이 멈춰요 | `보드 계속 깨워 두기`가 꺼져 있는 상태예요. 이때 보드는 데모 원래 동작(손이 없으면 절전)대로 움직여요. 켜면 다음에 깰 때부터 계속 깨어 있어요 |
-| 실행하면 "HID 브리지를 못 찾았다" 또는 열기 실패 | USB 케이블을 확인하세요. **이 프로그램을 두 개 띄우면 두 번째는 장치를 못 열어요.** 이전 창을 닫으세요 |
-| 실제 전원 리셋이 필요할 때 | MCU 보드의 `MCU RESET` 버튼을 누르면 돼요(손은 패널에서 떼고). 보드가 처음부터 기준선을 다시 잡아요 |
+| The slider, wheel, etc. stay on with nothing touching them (⚠ warning at the bottom) | The baseline (LTA) is off. The board captures it at power-up; if a hand was near the panel at that moment, or the panel was moved afterwards (e.g. next to the laptop), the baseline is wrong. The board also halts baseline updates during proximity/touch, so it takes more than 2 minutes to recover by itself. → Press **[기준선 다시 잡기]** and take your hand away |
+| Pressing a button does not give a white outline | Switch the colour reference to `터치 기준 대비` and press again to see whether it gets close to 1. If it stops at 0.3-0.5, the finger does not cover enough of the circle. Otherwise the baseline drifted while you were pressing → re-capture the baseline |
+| The display stays at `아직 데이터 없음` ("no data yet") | The board is asleep. Bring a hand over the panel to wake it. Without a hand it wakes within about 50 s. After that it stays real-time |
+| The display freezes 1 s after taking the hand away | `보드 계속 깨워 두기` is unchecked, so the board follows the demo's original behaviour (sleep when no hand). Check it and the board stays awake from the next wake-up |
+| "HID 브리지를 못 찾았다" (HID bridge not found) or open failure on start | Check the USB cable. **If two instances of this program are running, the second cannot open the device.** Close the previous window |
+| A real power reset is needed | Press the `MCU RESET` button on the MCU board (with the hand away from the panel). The board re-captures the baseline from scratch |
 
-## 스텐트 → 버튼 1 BER 시험: 명령 하나로 (`stent_ber.py`)
+## Stent → touchscreen BER test in one command (`stent_ber.py`)
 
-트랜시버와 CapTIvate가 **같은 노트북**에 꽂혀 있으면 이것 하나로 송신, 수신, 실시간 창, 분석을 다 해요.
+When the transceiver and the CapTIvate board are plugged into **the same laptop**, this one script does transmit, receive, the live window and the analysis.
 
 ```
-~/.venvs/galvanic/bin/python stent_ber.py --electrode S1 --carrier 163000  # 반송파 하나 (센서 맞추기+보정 ~20 s, 프레임 2 개 ~80 s)
-~/.venvs/galvanic/bin/python stent_ber.py --carrier 100e3,150e3,200e3      # 차례로 + 비교표·비교 그림
-~/.venvs/galvanic/bin/python stent_ber.py --carrier 163e3 --wave sine      # 사각/사인 비교
+~/.venvs/galvanic/bin/python stent_ber.py --electrode S1 --carrier 163000  # one carrier (sensor tuning + calibration ~20 s, 2 frames ~80 s)
+~/.venvs/galvanic/bin/python stent_ber.py --carrier 100e3,150e3,200e3      # several in turn + comparison table and figure
+~/.venvs/galvanic/bin/python stent_ber.py --carrier 163e3 --wave sine      # square vs sine
 ```
 
-**반송파마다 하는 일**
-1. 송신을 끈 채로 기준선을 잡고, 4초 동안 송신 없는 잡음을 녹화해요.
-2. 송신을 시작해요. 프로그램이 직접 보내니 비트 시각을 정확히 알아요.
-3. 보내는 동안 실시간 창을 띄워요. 버튼 1 count와 보낸 비트, 비트마다의 평균 count가 보여요.
-4. 끝나면 `data/stentber_*/result.png`가 열려요:
-   - (a) 받은 원신호와 보낸 비트
-   - (b) 켤 때·끌 때의 평균 계단 응답: 터치스크린이 반송파를 **어떻게** 보는지
-   - (c) 비트 판정값 분포
-   - (d) 보낸 비트와 받은 비트 비교: **잘 해석되는지**
+**What it does for each carrier**
+1. Captures the baseline with the transmitter off and records 4 s of noise without transmission.
+2. Starts transmitting. The script itself sends the bits, so it knows the bit timing exactly.
+3. Shows a live window during transmission: the electrode count, the transmitted bits and the mean count per bit.
+4. At the end it opens `data/stentber_*/result.png`:
+   - (a) received raw signal and transmitted bits
+   - (b) average step response at turn-on and turn-off: **how** the touchscreen sees the carrier
+   - (c) distribution of the bit decision values
+   - (d) transmitted vs received bits: **whether it decodes correctly**
 
-**BER 두 가지**
-- **블라인드:** 수신 정보만으로 동기를 잡고 판정해요. 실제 수신기 성능이에요.
-- **시각 알려 줌:** 보낸 시각을 알려 주고 판정해요. 동기 실수를 뺀 상한이에요.
+**Two kinds of BER**
+- **Blind:** synchronisation and decisions use only the received data. This is the real receiver performance.
+- **Genie timing:** the transmit time is given to the decoder. This is an upper bound without synchronisation errors.
 
-**시험 동안만 바꾸는 보드 설정** (끝나면 250으로 되돌려요)
-- 버튼 측정 목표 카운트를 250에서 500으로 올려요(`--conv-count`).
-- 250에서는 count가 거의 한 숫자에 붙어 있어요(잡음 σ 0.07~0.12 count). 그래서 한 칸(0.4%)보다 작은 변화는 평균을 내도 안 보여요.
-- 500으로 올리면 한 칸이 0.2%가 되고 잡음이 σ 0.7 count로 커져서, 평균을 내면 한 칸보다 작은 변화도 보여요.
-- 1000은 스캔이 3.8 Hz로 떨어져서 못 써요.
+**Board settings changed only during the test** (restored to 250 afterwards)
+- The button conversion count is raised from 250 to 500 (`--conv-count`).
+- At 250 the count is almost stuck at one value (noise σ 0.07-0.12 counts), so changes smaller than one step (0.4 %) stay invisible even after averaging.
+- At 500 one step is 0.2 % and the noise grows to σ 0.7 counts, so averaging reveals changes smaller than one step.
+- 1000 cannot be used because the scan rate drops to 3.8 Hz.
 
-**터치스크린이 신호를 받는 방식 (2026-10-15 실측으로 확인)**
-- 이 센서는 전극을 충전했다가 내부 콘덴서로 옮겨 담는 동작(전하 전달)을 수백 번 반복해 한 번 재요.
-- 한 번 옮겨지는 전하에 남는 건 **충전 시각과 전달 시각 사이에 바뀐 스텐트 전압**뿐이에요.
-  - 그래서 데모 설정(전하 전달 2.016 MHz)에서는 1 kHz, 100, 163, 200 kHz가 모두 **0.1 count도 안 움직였어요**. 스텐트 E+에서 직접 잰 전압은 1.1 Vpp였는데도요.
-  - 반대로 전하 전달 주파수 f_t 근처(±0.5 kHz)의 신호는 매번 같은 위상으로 쌓여요. 그래서 count가 **±30~50씩 출렁여요**. 송신 전 잡음 σ는 0.7~1이에요.
-- f_t는 바꿀 수 있어요: **f_t = 2.016 MHz ÷ (L + 1)**. 분주 2, 충전 길이 = 전달 길이 = L로 둬요.
-  - 실측: 0/0 → 2.016 MHz, 11/11 → 168.0 kHz, 분주 3의 5/5 → 168.0, 분주 3의 6/6 → 144.0 kHz
-  - 충전 ≠ 전달이거나 분주 1이면 공식에서 벗어나거나 반응이 약했어요.
-- 100~200 kHz에서 고를 수 있는 값: 100.8, 106.1, 112.0, 118.6, 126.0, 134.4, 144.0, 155.1, 168.0, 183.3, 201.6 kHz
-- 그래서 `stent_ber.py`는 반송파마다 이렇게 해요:
-  1. 받는 센서의 f_t를 가장 가까운 값으로 맞춰요.
-  2. 보정 스윕(±2%, 100 Hz 간격, 약 14초)으로 반응이 가장 큰 주파수를 찾아요.
-  3. 송신을 그 주파수로 옮겨서 BER을 재요.
-  4. 끝나면 센서 설정을 되돌려요.
-  - `--no-tune`이면 데모 f_t(2.016 MHz)를 그대로 둬요.
-- 받는 방식이 "평균 이동"이 아니라 "출렁임"이라 판정 특징은 `logenergy`예요. 비트 안 이웃 표본 차 제곱에 로그를 씌운 값이에요.
-  - 그냥 energy를 쓰면 큰 출렁임 몇 개가 문턱을 끌어올려서, 2.016 MHz 런에서 8/127이 틀렸어요. logenergy로는 0/127이에요.
+**How the touchscreen picks up the signal (confirmed by measurement on 2026-10-15)**
+- The sensor measures once by repeating, hundreds of times, a cycle of charging the electrode and transferring that charge to an internal capacitor (charge transfer).
+- What survives in each transferred charge is only **the change in stent voltage between the charge instant and the transfer instant**.
+  - So with the demo setting (charge-transfer frequency 2.016 MHz), carriers of 1 kHz, 100, 163 and 200 kHz **did not move the count by even 0.1**, although the voltage measured directly at the stent electrode E+ was 1.1 Vpp.
+  - In contrast, a signal near the charge-transfer frequency f_t (within ±0.5 kHz) accumulates with the same phase every time, so the count **swings by ±30-50**. The noise before transmission is σ 0.7-1.
+- f_t can be changed: **f_t = 2.016 MHz ÷ (L + 1)**, with frequency divider 2 and charge length = transfer length = L.
+  - Measured: 0/0 → 2.016 MHz, 11/11 → 168.0 kHz, divider 3 with 5/5 → 168.0, divider 3 with 6/6 → 144.0 kHz
+  - With charge ≠ transfer, or with divider 1, the frequency deviated from the formula or the response was weak.
+- Available values between 100 and 200 kHz: 100.8, 106.1, 112.0, 118.6, 126.0, 134.4, 144.0, 155.1, 168.0, 183.3, 201.6 kHz
+- So for each carrier `stent_ber.py`:
+  1. Sets the receiving sensor's f_t to the nearest available value.
+  2. Runs a calibration sweep (±2 %, 100 Hz steps, about 14 s) to find the frequency with the largest response.
+  3. Moves the transmitter to that frequency and measures the BER.
+  4. Restores the sensor settings at the end.
+  - With `--no-tune` the demo f_t (2.016 MHz) is kept.
+- Because the signal shows up as a "swing" rather than a "mean shift", the decision feature is `logenergy`: the log of the squared differences between neighbouring samples within a bit.
+  - Plain energy let a few large swings pull the threshold up, giving 8/127 errors in the 2.016 MHz run. With logenergy it is 0/127.
 
-**결과 (S1에 스텐트, 사각파 OOK 5 bps, 스캔 51.1 Hz = 비트당 10 표본)**
+**Results (stent on S1, square-wave OOK at 5 bps, scan 51.1 Hz = 10 samples per bit)**
 
-| 반송파 | 터치 센서 f_t | 블라인드 BER | 비고 |
+| Carrier | Touch sensor f_t | Blind BER | Notes |
 |---|---|---|---|
-| 1 kHz, 100, 163, 200 kHz | 2.016 MHz (데모) | 동기 못 잡음 | count 변화 ≤ 0.12 |
-| 2.016 MHz | 2.016 MHz (데모) | 0/127 (logenergy) | 흔들림 +27.8 dB |
-| 163 kHz 요청 → **167.842 kHz** | 168.0 kHz (분주 2, 11/11) | **1/254** = 3.9e-3 | 흔들림 +22 dB, Q 5.1, 동기 오차 +0.02 비트 |
-| 163 kHz 요청, **FSK**: 1 = 167.841 / 0 = 170.841 kHz (`--keying fsk`) | 168.0 kHz | **0/254** | 송신 포락선 일정, 대비 +25.6 dB, Q 5.4 - 3 kHz 비켜나면 센서에겐 '끔' |
+| 1 kHz, 100, 163, 200 kHz | 2.016 MHz (demo) | no sync | count change ≤ 0.12 |
+| 2.016 MHz | 2.016 MHz (demo) | 0/127 (logenergy) | swing +27.8 dB |
+| 163 kHz requested → **167.842 kHz** | 168.0 kHz (divider 2, 11/11) | **1/254** = 3.9e-3 | swing +22 dB, Q 5.1, sync error +0.02 bit |
+| 163 kHz requested, **FSK**: 1 = 167.841 / 0 = 170.841 kHz (`--keying fsk`) | 168.0 kHz | **0/254** | constant transmit envelope, contrast +25.6 dB, Q 5.4 — 3 kHz off is "off" for the sensor |
 
-- 같은 날 B1에서 1 kHz와 163 kHz에 반응이 없었던 것도 같은 이유예요(그때는 f_t를 안 맞췄어요).
-- 전극 선택: `--electrode S1` (B1~B8, S0~S3, W0~W2, P)
-- 다시 분석: `--reanalyse data/stentber_...`
+- The lack of response on B1 at 1 kHz and 163 kHz earlier the same day had the same cause (f_t was not tuned then).
+- Electrode selection: `--electrode S1` (B1-B8, S0-S3, W0-W2, P)
+- Re-analysis: `--reanalyse data/stentber_...`
 
-## FSK + DBPSK 한 파형 시험 (2026-10-15)
+## FSK + DBPSK on one waveform (2026-10-15)
 
-태블릿용 비트는 주파수로 실어요(1 = 167.84 kHz, 0 = 170.84 kHz). 그 위에 스텐트끼리 쓸 DBPSK 위상 반전을 얹어요.
+The tablet bit is carried by frequency (1 = 167.84 kHz, 0 = 170.84 kHz). On top of that, DBPSK phase flips for stent-to-stent communication are overlaid.
 
-**펌웨어 변경**
-- TeensyTRX에 `psk <심볼 µs> [PRBS 차수]` 명령을 넣었어요.
-  - 시간표의 각 단계(= 태블릿 비트) 안을 심볼 주기로 나눠요.
-  - PRBS(기본 9차, 시드 전부 1) 비트가 1이면 위상을 180° 뒤집어요.
-  - `psk 0`(기본)이면 예전과 같아요.
-- 원본은 `transceiver/firmware/TeensyTRX_backup_20261015/`에 있어요.
-- 검증: E+를 녹음해서 이웃 심볼 위상차를 읽으니 PRBS9와 399/399 일치했어요(위상 +85° / −96°).
-- 주의: 심볼마다 위상이 0°/180°에서 다시 시작해요. 그래서 반송파 × 심볼 길이가 정수가 아니면 심볼마다 일정한 위상 회전이 더해져요. 체내 수신기는 이걸 보정해야 해요.
-- **2026-10-15 17시 펌웨어 바꿈 (기본 `cont`)**: 위의 '다시 시작' 방식은 켜는 순간이 1 µs 단위로 흔들려(168 kHz에서 60°) 송신 파형 자체에 DBPSK 오류가 있었어요(송신 루프백 BER 약 1e-3).
-  - 이제는 시작 전에 두 톤과 0°/180°를 레지스터에 넣어 두고, 심볼마다 제어 워드 하나로 FSEL/PSEL만 바꿔요. 위상이 이어지고 심볼 사이 공백도 없어요.
-  - 같은 루프백에서 10/100/1000 baud 모두 오류 0이에요(`transceiver/data/psk_loopcont_tx_20261015_170829`).
-  - 예전 방식은 `psk <심볼 µs> 9 reset`으로 쓸 수 있어요. OOK(0 워드)와 겹치면 저절로 예전 방식이 돼요.
-  - 그래서 이 시각 이후 `stent_ber.py` 결과는 태블릿 쪽에서도 위상 연속 파형으로 잰 거예요.
+**Firmware change**
+- Added the command `psk <symbol µs> [PRBS order]` to TeensyTRX.
+  - Each schedule step (= one tablet bit) is divided into symbol periods.
+  - When the PRBS bit (order 9 by default, seed all ones) is 1, the phase is flipped by 180°.
+  - `psk 0` (the default) behaves as before.
+- The original firmware is kept in `transceiver/firmware/TeensyTRX_backup_20261015/`.
+- Verification: recording E+ and reading the phase difference between neighbouring symbols matched PRBS9 in 399/399 symbols (phase +85° / −96°).
+- Caveat: every symbol restarts the phase at 0°/180°. If carrier × symbol length is not an integer, a constant phase rotation is added per symbol, and the in-body receiver must compensate for it.
+- **Firmware changed at 17:00 on 2026-10-15 (default `cont`)**: the "restart" scheme above jittered the turn-on instant by 1 µs (60° at 168 kHz), so the transmitted waveform itself had DBPSK errors (transmit loopback BER about 1e-3).
+  - Now both tones and 0°/180° are loaded into the registers before starting, and each symbol only changes FSEL/PSEL with a single control word. The phase is continuous and there is no gap between symbols.
+  - In the same loopback, 10/100/1000 baud all give zero errors (`transceiver/data/psk_loopcont_tx_20261015_170829`).
+  - The old scheme is available as `psk <symbol µs> 9 reset`. It is selected automatically when combined with OOK (the zero word).
+  - So `stent_ber.py` results after this time were measured with a phase-continuous waveform on the tablet side as well.
 
-**실행 예**
+**Examples**
 ```
 ~/.venvs/galvanic/bin/python stent_ber.py --electrode S1 --carrier 163000 --keying fsk --bps 5 --psk-baud 0,10,100,1000
 ~/.venvs/galvanic/bin/python stent_ber.py --electrode S1 --carrier 163000 --keying fsk --bps 10,20,25 --psk-baud 100 --frames 2
 ```
 
-**결과** (그림 `data/fsk_dbpsk_summary_20261015.png`, 태블릿 BER은 블라인드 판정)
+**Results** (figure `data/fsk_dbpsk_summary_20261015.png`, tablet BER with blind decoding)
 
-| 시험 | 조건 | 태블릿 BER |
+| Test | Condition | Tablet BER |
 |---|---|---|
-| DBPSK 얹기 | 없음, 10, 100, 250 baud | 0/127 |
+| DBPSK overlay | none, 10, 100, 250 baud | 0/127 |
 | | 1000 baud | 1/127 |
-| | 5000 baud | 26/127 (흔들림 +20 → +6 dB) |
-| 태블릿 속도 (DBPSK 100 baud 얹음, 스캔 51 Hz) | 5 / 10 / 20 bps | 0/127, 2/254, 2/254 |
-| | 25 bps (비트당 2표본) | 8/254 (3%) |
-| 스캔 85 Hz (12 ms) | 20 / 25 / 33 bps | 5/254, 6/254, 8/254 |
+| | 5000 baud | 26/127 (swing +20 → +6 dB) |
+| Tablet rate (DBPSK 100 baud overlaid, scan 51 Hz) | 5 / 10 / 20 bps | 0/127, 2/254, 2/254 |
+| | 25 bps (2 samples per bit) | 8/254 (3 %) |
+| Scan 85 Hz (12 ms) | 20 / 25 / 33 bps | 5/254, 6/254, 8/254 |
 
-- 정리:
-  - DBPSK는 **1000 baud까지** 태블릿 수신에 영향이 없고, 5000 baud면 무너져요.
-  - 태블릿 속도는 **20 bps까지 BER 1% 미만**, 25~33 bps는 약 3%예요.
-- 스캔을 10 ms로 설정하면 보드가 실제로는 약 11.1 ms마다 불규칙하게 스캔해요. 한 번 스캔(슬라이더 3.6 ms + 다른 센서 + I2C 전송)이 10 ms를 넘기 때문이에요. 그러면 일정 간격을 가정한 분석이 틀어져요. **12 ms(85 Hz)가 일정하게 도는 가장 빠른 값**이었어요.
-  - 스캔을 15 ms보다 짧게 하면 센서 요약 패킷(C1)을 꺼요.
-- 비트당 표본이 4개보다 적으면 비트 앞 표본을 버리지 않아요(`set_guard`). 판정은 `absdev` 특징으로 해요: 표본 하나가 기준선에서 얼마나 벗어났는지 보고, 로그를 씌운 값이에요.
+- Summary:
+  - DBPSK does not affect tablet reception **up to 1000 baud**; at 5000 baud it breaks down.
+  - The tablet rate stays **below 1 % BER up to 20 bps**; 25-33 bps gives about 3 %.
+- With the scan period set to 10 ms, the board actually scans irregularly about every 11.1 ms, because one scan (slider 3.6 ms + other sensors + I2C transfer) takes longer than 10 ms. This breaks the analysis, which assumes uniform spacing. **12 ms (85 Hz) was the fastest setting that runs uniformly.**
+  - With scan periods shorter than 15 ms, the sensor summary packets (C1) are turned off.
+- With fewer than 4 samples per bit, the samples at the start of a bit are not discarded (`set_guard`). Decisions use the `absdev` feature: how far a single sample deviates from the baseline, on a log scale.
 
-## 태블릿 속도 × 스캔률 (2026-10-15, `plot_rate_sweep.py`)
+## Tablet rate × scan rate (2026-10-15, `plot_rate_sweep.py`)
 
-조건은 S1, FSK 167.84/170.84 kHz, DBPSK 100 baud 얹음, 점당 635~762비트(5 bps만 254)이에요. 결과는 `data/rate_sweep_rateF51_rateF60_rateF68.png`과 `.csv`예요.
+Conditions: S1, FSK 167.84/170.84 kHz, DBPSK 100 baud overlaid, 635-762 bits per point (254 for 5 bps). Results in `data/rate_sweep_rateF51_rateF60_rateF68.png` and `.csv`.
 
-| 태블릿 속도 | 51 Hz (20 ms) | 60 Hz (17 ms) | 68 Hz (15 ms) |
+| Tablet rate | 51 Hz (20 ms) | 60 Hz (17 ms) | 68 Hz (15 ms) |
 |---|---|---|---|
 | 5 bps | 0/254 | 0/254 | 0/254 |
-| 10 bps | 0.79% | 0.63% | 0/635 |
-| 12.5 bps | 2.6% | 0.66% | 0.26% |
-| 16.7 bps | 1.7% | 1.05% | 1.05% |
-| 20 bps | 3.3% | 1.2% | 0.79% |
-| 25 bps | 2.9% | 3.4% | 1.2% |
-| 33 bps | 6.7% | 5.3% | 3.7% |
-| 50 bps | 14.6% | 6.4% | 6.4% |
+| 10 bps | 0.79 % | 0.63 % | 0/635 |
+| 12.5 bps | 2.6 % | 0.66 % | 0.26 % |
+| 16.7 bps | 1.7 % | 1.05 % | 1.05 % |
+| 20 bps | 3.3 % | 1.2 % | 0.79 % |
+| 25 bps | 2.9 % | 3.4 % | 1.2 % |
+| 33 bps | 6.7 % | 5.3 % | 3.7 % |
+| 50 bps | 14.6 % | 6.4 % | 6.4 % |
 
-- 비트당 측정 횟수(= 스캔률 ÷ 속도)로 다시 그리면 곡선들이 겹쳐요. 비트당 약 4회 이상이면 BER이 1% 근처 또는 그 아래예요.
-  - 그래서 대략 **최대 속도 ≈ 스캔률 ÷ 4**예요. 실측으로는 51 Hz → 10 bps, 60 Hz → 12.5 bps, 68 Hz → 20 bps예요.
-- 반송파가 터치 센서의 최적점에서 약 160 Hz 어긋나면 BER이 2~3배 나빠져요. 그래서 보정 스윕이 실패하면 다시 해요.
-- 85 Hz(12 ms)는 몇 분 쓰면 PGMR HID 브리지가 끊겼어요(`read error`). 시험 동안 센서 요약 패킷(C1)은 늘 꺼요.
-- 끊김은 부하가 낮을 때도 가끔 생겨요. 끊긴 뒤 계속 불안정하면 PGMR USB를 다시 꽂아요.
+- Re-plotted against scans per bit (= scan rate ÷ bit rate), the curves collapse onto each other. At about 4 or more scans per bit, the BER is around or below 1 %.
+  - So roughly **maximum rate ≈ scan rate ÷ 4**. Measured: 51 Hz → 10 bps, 60 Hz → 12.5 bps, 68 Hz → 20 bps.
+- If the carrier is about 160 Hz off the touch sensor's optimum, the BER gets 2-3× worse, so the calibration sweep is retried when it fails.
+- At 85 Hz (12 ms), the PGMR HID bridge dropped out after a few minutes (`read error`). The sensor summary packets (C1) are always off during tests.
+- Drop-outs occasionally happen at low load too. If it stays unstable after a drop-out, replug the PGMR USB.
 
 ## OOK vs FSK (2026-10-15, `plot_ook_fsk.py okfsk_ook okfsk_fsk`)
 
-조건은 S1, 스캔 68 Hz(15 ms), 터치 센서 f_t 168 kHz, DBPSK 얹지 않음이에요. 15 bps는 비트가 66.7 ms라 10 ms 심볼로 나눠떨어지지 않아서 DBPSK를 뺐어요. 그림은 `data/ook_vs_fsk_okfsk_ook_okfsk_fsk.png`예요.
+Conditions: S1, scan 68 Hz (15 ms), touch sensor f_t 168 kHz, no DBPSK overlay. At 15 bps a bit is 66.7 ms, which is not a multiple of the 10 ms symbol, so DBPSK was left out. Figure: `data/ook_vs_fsk_okfsk_ook_okfsk_fsk.png`.
 
-| | 10 bps | 15 bps | 켬/끔 대비 |
+| | 10 bps | 15 bps | on/off contrast |
 |---|---|---|---|
-| OOK (1 = 167.80 kHz 켬, 0 = 끔) | 0/635 | 0/762 | +22 / +18 dB |
-| FSK (1 = 167.81, 0 = 170.81 kHz, 늘 켬) | 0/635 | 5/762 (0.66%) | +19 / +19 dB |
+| OOK (1 = 167.80 kHz on, 0 = off) | 0/635 | 0/762 | +22 / +18 dB |
+| FSK (1 = 167.81, 0 = 170.81 kHz, always on) | 0/635 | 5/762 (0.66 %) | +19 / +19 dB |
 
-- 터치스크린이 받은 count 모양은 두 방식이 같아요. 비트 1 동안 ±80 정도 출렁이고, 비트 0 동안은 조용해요. 3 kHz 비킨 FSK의 '0'은 터치 센서에게 '끔'과 똑같이 보여요.
-- 15 bps에서 FSK 5개 대 OOK 0개는 차이가 날락 말락 한 수준이에요(신뢰구간이 겹쳐요). 두 방식 모두 1% 아래예요.
-- FSK는 반송파가 늘 켜져 있어서 DBPSK를 얹을 수 있어요. OOK는 '0' 동안 체내 링크가 끊겨요.
+- The count waveform received by the touchscreen looks the same for both: it swings by about ±80 during a 1 and stays quiet during a 0. To the touch sensor, FSK's '0' at 3 kHz offset looks exactly like "off".
+- At 15 bps, FSK 5 errors vs OOK 0 is borderline (the confidence intervals overlap). Both are below 1 %.
+- FSK keeps the carrier on, so DBPSK can be overlaid. With OOK the in-body link is interrupted during every '0'.
 
-## FSK가 실제로 나은 점 (2026-10-15, `plot_fsk_advantage.py`, 그림 `data/fsk_advantage.png`)
+## What FSK actually improves (2026-10-15, `plot_fsk_advantage.py`, figure `data/fsk_advantage.png`)
 
-태블릿 BER만 보면 FSK가 OOK보다 좋을 수 없어요. 태블릿은 FSK의 '0'(+3 kHz)을 '꺼짐'으로 보기 때문이에요. 그래서 송신 쪽에서 실제로 차이가 나는 것을 쟀어요.
+Judged by tablet BER alone, FSK cannot beat OOK, because the tablet sees FSK's '0' (+3 kHz) as "off". So the differences on the transmit side were measured.
 
-- **E+ 녹음 (`transceiver/eplus_keying.py`):** TeensyTRX가 보내는 동안 자기 전극을 500 kS/s로 녹음했어요. 10 bps, 반송파 167.8 kHz예요.
-  - **포락선:** OOK는 켜짐과 꺼짐을 오가고(변동 49%), FSK는 1%예요.
-  - **10~100 Hz 포락선 잔물결**(심장 기기 감지 대역, 반송파 진폭 대비): OOK −16 dB, **FSK −50 dB**예요.
-  - **같이 실은 DBPSK 100 baud가 E+에서 맞게 풀린 비율:** OOK 41%(327/799, '0' 동안 사라짐), **FSK 100%(799/799)**예요.
-- **태블릿 BER**(DBPSK 얹음, 68 Hz 스캔, `--label adv_ook / adv_fsk`):
+- **E+ recording (`transceiver/eplus_keying.py`):** TeensyTRX recorded its own electrode at 500 kS/s while transmitting. 10 bps, carrier 167.8 kHz.
+  - **Envelope:** OOK alternates between on and off (49 % variation); FSK varies by 1 %.
+  - **10-100 Hz envelope ripple** (the sensing band of cardiac devices, relative to carrier amplitude): OOK −16 dB, **FSK −50 dB**.
+  - **Fraction of the overlaid DBPSK 100 baud symbols correctly decoded at E+:** OOK 41 % (327/799, lost during '0'), **FSK 100 % (799/799)**.
+- **Tablet BER** (DBPSK overlaid, scan 68 Hz, `--label adv_ook / adv_fsk`):
 
   | | 10 bps | 20 bps |
   |---|---|---|
   | OOK | 0/635 | 5/762 |
   | FSK | 1/635 | 2/762 |
 
-  두 방식이 같은 수준이에요.
+  Both schemes are at the same level.
 
-## 두 전극으로 FSK의 '0'도 듣기 (2026-10-15, `dual_ber.py`, 그림 `data/dual_ber.png`)
+## Hearing FSK's '0' with two electrodes (2026-10-15, `dual_ber.py`, figure `data/dual_ber.png`)
 
-한 전극은 자기 전하 전달 주파수 ±0.5 kHz만 들어요. 그래서 FSK의 '0'(다른 주파수)은 한 전극에게 그냥 '꺼짐'이에요. 근접 링 P를 '0' 주파수에 맞추면 태블릿이 '0'도 직접 들을 수 있어요.
+A single electrode only hears within ±0.5 kHz of its own charge-transfer frequency, so FSK's '0' (a different frequency) is simply "off" for it. Tuning the proximity ring P to the '0' frequency lets the tablet hear the '0' directly as well. No hardware is added: the same stent and transmitter are used, and two of the panel's existing electrodes are read at the same time.
 
-- **설정:** 68 Hz 스캔, 블라인드 판정, 속도마다 635~762비트
-  - S1은 L=11(168.0 kHz)로 '1' 주파수를 들어요.
-  - P는 L=12(155.1 kHz)로 '0' 주파수를 들어요.
-  - 보정 결과: '1' = 167.79 kHz(+28 dB), '0' = 154.88 kHz(+29 dB)
-- **판정 방식**
-  - FSK 두 전극: z(S1) − z(P). z는 흔들림(absdev)을 사분위로 정규화한 값이에요.
-  - OOK 두 전극(비교 기준): S1과 P를 같은 주파수에 맞추고 z(S1) + z(P)로 판정해요.
-- **실행:** `~/.venvs/galvanic/bin/python dual_ber.py --mode fsk2 --label dual_fsk2` (OOK는 `--mode ook2 --label dual_ook2`), 그림은 `plot_dual.py dual_fsk2 dual_ook2`
+```
+TeensyTRX ── E+ wire ──> stent (lying on S1)
+                            │  field spreads into the panel
+                 ┌──────────┴──────────┐
+                 ▼                     ▼
+       S1: hears 168 kHz only    P: hears 155 kHz only
+       (bit 1 → swings)          (bit 0 → swings)
+```
 
-  | bps (비트당 스캔) | OOK S1 하나 | OOK 두 전극 | FSK S1 하나 | FSK 두 전극 |
+- **Setup:** scan 68 Hz, blind decoding, 635-762 bits per rate
+  - S1 listens to the '1' frequency with L = 11 (168.0 kHz).
+  - P listens to the '0' frequency with L = 12 (155.1 kHz). P is the ring around the whole panel border, so it passes close to the stent on S1.
+  - Calibration: '1' = 167.79 kHz (+28 dB), '0' = 154.88 kHz (+29 dB)
+- **Decision rule**
+  - FSK, two electrodes: z(S1) − z(P), where z is the swing feature (absdev) normalised by its interquartile range.
+  - OOK, two electrodes (reference): S1 and P tuned to the same frequency, decision on z(S1) + z(P).
+- **Run:** `~/.venvs/galvanic/bin/python dual_ber.py --mode fsk2 --label dual_fsk2` (OOK: `--mode ook2 --label dual_ook2`); figure: `plot_dual.py dual_fsk2 dual_ook2`. The figure shows only the two-electrode receivers; the single-electrode results are stored in each `result.json` under `best.single`.
+
+  | bps (scans per bit) | OOK, S1 only | OOK, two electrodes | FSK, S1 only | FSK, two electrodes |
   |---|---|---|---|---|
   | 10 (6.8) | 0/635 | 0/635 | 1/635 | 0/635 |
   | 16.67 (4.1) | 3/762 | 0/762 | 12/762 | 1/762 |
   | 20 (3.4) | 3/762 | 2/762 | 7/762 | 1/762 |
   | 25 (2.7) | 12/762 | 2/762 | 21/762 | **0/762** |
   | 33.33 (2.0) | 46/762 | 17/762 | 59/762 | **10/762** |
-  | 합 | 64/3683 | 21/3683 | 100/3683 | **12/3683** |
+  | Total | 64/3683 | 21/3683 | 100/3683 | **12/3683** |
 
-- **읽는 법**
-  - 전극 하나로만 받으면 FSK가 OOK보다 나빠요. S1에게 FSK의 '0'은 꺼짐이 아니라 '조금 들리는 다른 소리'라서예요.
-  - 전극 두 개로 받으면 FSK가 가장 좋아요. 25 bps에서 0/762, 33 bps에서 1.3%(OOK 두 전극은 2.2%)예요.
-  - 다만 OOK 두 전극과의 차이는 95% 구간이 겹쳐요. 큰 이득은 '전극 둘'에서 오고, FSK는 그 위에 조금 더 얹는 정도예요.
-  - 25 bps(비트당 2.7 스캔)를 1% 아래로 받은 건 이 조합이 처음이에요. 한 전극일 때 한계는 스캔률/4(68 Hz → 약 17~20 bps)였어요.
+- **How to read it**
+  - With one electrode, FSK is worse than OOK: for S1, FSK's '0' is not silence but "a different tone it hears faintly".
+  - With two electrodes, FSK is the best: 0/762 at 25 bps and 1.3 % at 33 bps (OOK with two electrodes: 2.2 %).
+  - The difference from two-electrode OOK is within overlapping 95 % intervals, however. Most of the gain comes from using two electrodes; FSK adds a little on top.
+  - This is the first combination that received 25 bps (2.7 scans per bit) below 1 % BER. With one electrode the limit was scan rate / 4 (68 Hz → about 17-20 bps).
 
-## 스텐트 → 버튼 1 비트 전송 (BER 측정, 송수신 따로)
+## Stent → button 1 bit transfer (BER, separate TX and RX programs)
 
-TeensyTRX에 연결한 스텐트를 버튼 1 위에 올려 두고 OOK 비트를 보내요. CapTIvate가 버튼 1의 count로 받아서 BER을 계산해요.
+The earlier two-terminal workflow, kept for reference; `stent_ber.py` above replaces it when both devices are on the same laptop.
+
+A stent connected to TeensyTRX lies on button 1 and sends OOK bits. CapTIvate receives them through the button 1 count and computes the BER.
 
 ```
-  Mac ──USB── TeensyTRX (AD9833) ── E+ 선 ──> 스텐트  (버튼 1 위 아크릴에 그냥 올려 둠)
-   │                                 E− (Teensy GND) 는 따로 안 이어도 됨
-   │                                 (같은 Mac 이면 두 장치 접지가 USB 로 이미 이어져 있음)
-   └──USB── CAPTIVATE-PGMR ── FR2633 ── BSWP 패널 (버튼 1 = 왼쪽 위 '1')
+  Mac ──USB── TeensyTRX (AD9833) ── E+ wire ──> stent  (just placed on the acrylic over button 1)
+   │                                 E− (Teensy GND) does not need a separate wire
+   │                                 (on the same Mac, both devices already share ground via USB)
+   └──USB── CAPTIVATE-PGMR ── FR2633 ── BSWP panel (button 1 = top-left '1')
 ```
 
-**순서** (먼저 `bswp_map` 창을 닫으세요. 보드 USB는 한 프로그램만 열 수 있어요)
-1. 스텐트를 버튼 1 위에 올리고 E+ 선을 연결해요.
-2. **반송파부터 골라요** (약 2분). 어떤 주파수가 버튼 1에 보이는지는 아직 몰라요.
-   - 터미널 1 (수신, 먼저):
+**Steps** (close the `bswp_map` window first; only one program can open the board's USB)
+1. Put the stent on button 1 and connect the E+ wire.
+2. **Pick a carrier first** (about 2 min); it is not known in advance which frequency button 1 can see.
+   - Terminal 1 (receiver, start first):
      `cd captivate; ~/.venvs/galvanic/bin/python cap_ook_rx.py --probe --label probe1`
-   - "지금 송신 시작"이 뜨면 터미널 2 (송신):
+   - When "지금 송신 시작" ("start transmitting now") appears, terminal 2 (transmitter):
      `cd transceiver; ~/.venvs/galvanic/bin/python cap_ook_tx.py --probe`
-   - 끝나면 반송파 14개의 표가 나와요. level(평균 이동)과 energy(흔들림)가 가장 큰 반송파를 추천해 줘요.
-3. **그 반송파로 비트를 보내요** (약 2.5분, 페이로드 508비트).
-   - 수신: `~/.venvs/galvanic/bin/python cap_ook_rx.py --carrier <Hz> --label run1`
-   - 송신: `~/.venvs/galvanic/bin/python cap_ook_tx.py --carrier <Hz>`
-   - `--bps`, `--payload`, `--prbs`는 양쪽을 같게 줘요. 송신 `--seconds`와 수신 `--tx-seconds`도 같게 맞춰요.
-4. 결과는 `data/capook_<label>_<시각>/`에 저장되고, 그림(`result.png`)이 자동으로 열려요.
-   - 다른 옵션으로 다시 분석: `cap_ook_rx.py --reanalyse data/capook_...` (예: `--feature level`)
+   - At the end a table of 14 carriers is printed, and the carrier with the largest level (mean shift) and energy (swing) is recommended.
+3. **Send bits on that carrier** (about 2.5 min, 508 payload bits).
+   - Receiver: `~/.venvs/galvanic/bin/python cap_ook_rx.py --carrier <Hz> --label run1`
+   - Transmitter: `~/.venvs/galvanic/bin/python cap_ook_tx.py --carrier <Hz>`
+   - Give `--bps`, `--payload` and `--prbs` the same values on both sides. Also match the transmitter's `--seconds` with the receiver's `--tx-seconds`.
+4. Results are saved in `data/capook_<label>_<time>/` and the figure (`result.png`) opens automatically.
+   - Re-analyse with other options: `cap_ook_rx.py --reanalyse data/capook_...` (e.g. `--feature level`)
 
-**수신이 하는 일**
-- **녹화 동안만 보드 설정을 바꾸고, 끝나면 되돌려요.**
-  - 스캔 간격을 20 ms로 줄여요. 실측 51.12 Hz예요.
-  - 버튼 센서의 카운트 필터를 꺼요. 송신이 만드는 흔들림을 깎지 않게 하려는 거예요.
-  - 자동 재보정은 끄고, 타임아웃과 음의 터치 임계는 최대로 올려요. 송신이 count를 흔들어도 보드가 기준선을 다시 잡지 않게 하려는 거예요.
-- **기준선은 스텐트를 올린 채, 송신은 끈 채로 한 번 잡아요.**
-- **두 가지 특징을 다 봐요.** 반송파가 count에 어떻게 보일지 몰라서예요.
-  - level: count 평균 이동. 사각파는 1일 때 평균 전압도 높아요.
-  - energy: 이웃 표본 차의 제곱. 반송파가 스캔마다 다른 위상으로 찍혀 생기는 흔들림이에요.
-  - 프리앰블+SFD 상관과 BER로 둘 중 나은 쪽을 골라요.
-- **프레임 찾기와 판정 방식**
-  - 송신은 Teensy 크리스털로 프레임을 정확한 주기로 반복해요. 그래서 모든 프레임의 상관 합이 가장 큰 격자 하나를 골라요.
-  - 판정 문턱은 아는 0(헤더, 끝 갭)과 판정한 비트로 주변 ±16비트를 보며 느린 기준선 흐름을 따라가요.
-- **결과 숫자:** BER(오류 0이면 95% 상한 3/N), Q와 그 Q가 뜻하는 가우스 BER, 1일 때 count가 얼마나 움직였는지(count와 %)를 보여줘요.
-- **표본 시각:** HID 도착 시각은 늦게만 오니, 덜 늦은 표본들로 보드 스캔 주기를 맞추고 번호를 매겨요(빠진 스캔은 보간하고 개수를 보고해요).
-- **반송파 고르기의 시작 시각:** 송신 로그(`transceiver/data/capook_tx_*.json`)를 저절로 찾아 맞춰요. 시간표 맨 앞의 3초 표지로도 맞출 수 있어요.
+**What the receiver does**
+- **Board settings are changed only during recording and restored afterwards.**
+  - The scan period is reduced to 20 ms (measured 51.12 Hz).
+  - The count filter of the button sensor is turned off, so it does not smooth away the swings caused by the transmitter.
+  - Automatic recalibration is turned off, and the timeout and negative-touch threshold are raised to the maximum, so the board does not re-capture its baseline while the transmitter shakes the count.
+- **The baseline is captured once with the stent in place and the transmitter off.**
+- **Both features are evaluated**, since it is not known in advance how the carrier will appear in the count.
+  - level: mean shift of the count. A square wave also has a higher mean voltage during a 1.
+  - energy: squared difference between neighbouring samples, i.e. the swing caused by the carrier being sampled at a different phase in each scan.
+  - The better one is chosen by the preamble + SFD correlation and the BER.
+- **Frame search and decisions**
+  - The transmitter repeats frames at an exact period set by the Teensy crystal, so a single grid that maximises the summed correlation over all frames is chosen.
+  - The decision threshold follows the slow baseline drift using known zeros (header, trailing gap) and decided bits within ±16 bits.
+- **Reported numbers:** BER (95 % upper bound 3/N when there are zero errors), Q and the Gaussian BER implied by that Q, and how much the count moved during a 1 (in counts and %).
+- **Sample timing:** HID arrival times can only be late, so the scan period of the board is fitted to the least-delayed samples and every scan is numbered (missing scans are interpolated and counted).
+- **Start time for the carrier probe:** found automatically from the transmit log (`transceiver/data/capook_tx_*.json`); the 3 s marker at the start of the schedule can also be used.
 
-**검증 (`test_cap_ook_rx.py`, 보드 없이 합성 데이터)**
-- 보드 클록과 Teensy 클록 차이, 도착 흔들림, 스캔 0.3% 빠짐, 정수 count, 드리프트를 넣었어요.
-- 결과:
-  - 센 신호: level, energy 모두 0/508
-  - 약한 신호: BER 3.0% (이상적 수신기 2.1%, 구현 손실 약 0.5 dB)
-  - 잡음만: 프레임을 잘못 잡지 않음
-  - 반송파 고르기: 시작 시각과 1등 반송파 정확
-- 실제 보드:
-  - 수신 흐름: 51.1 Hz, 빠짐 0, 송신 없을 때 B1 ±0.2~0.3 count
-  - 송신: 시간표 올리기와 체크섬 확인. 실제 송신·수신을 함께 돌린 시험은 아직 안 했어요.
+**Verification (`test_cap_ook_rx.py`, synthetic data without the board)**
+- Includes board/Teensy clock mismatch, arrival jitter, 0.3 % missing scans, integer counts and drift.
+- Results:
+  - Strong signal: 0/508 for both level and energy
+  - Weak signal: BER 3.0 % (ideal receiver 2.1 %, implementation loss about 0.5 dB)
+  - Noise only: no false frame detection
+  - Carrier probe: start time and best carrier found correctly
+- Real board:
+  - Receive stream: 51.1 Hz, no missing scans, B1 ±0.2-0.3 counts without transmission
+  - Transmit: schedule upload and checksum verified. Combined transmit/receive runs were done later with `stent_ber.py` (sections above).
 
-**왜 기본 반송파가 1012.5 Hz인가**
-- CapTIvate는 버튼 1을 한 번 잴 때 약 125 µs 동안 전하를 250번 옮겨 담아요(분주 2, ~2 MHz).
-- 반송파가 몇 kHz를 넘으면 이 창 안에서 평균되어 사라져요(8 kHz에서 0, 163 kHz에서 −36 dB).
-- 1012.5 Hz는 50 Hz 스캔에서 약 12 Hz(표본률의 1/4 근처)로 접혀서 이웃 표본 차가 커요.
-- 다만 이건 계산일 뿐이라 `--probe`로 먼저 확인하는 걸 권해요. 2 MHz 근처(전하 전달 주파수)도 넣어 두었어요.
+**Why the default carrier was 1012.5 Hz** (superseded: the 2026-10-15 measurements above showed that the sensor only responds near its charge-transfer frequency)
+- To measure button 1 once, CapTIvate transfers charge 250 times over about 125 µs (divider 2, ~2 MHz).
+- The reasoning was that carriers above a few kHz would average out within this window (0 at 8 kHz, −36 dB at 163 kHz).
+- 1012.5 Hz aliases to about 12 Hz at a 50 Hz scan rate (near a quarter of the sampling rate), which makes neighbouring-sample differences large.
+- This was only a calculation, which is why `--probe` was recommended first. Frequencies near 2 MHz (the charge-transfer frequency) were included in the probe as well.
 
-## 파일
-| 파일 | 하는 일 |
+## Files
+| File | Purpose |
 |---|---|
-| `run_bswp_map.command` | 더블클릭 실행기예요. `~/.venvs/galvanic` 파이썬을 써요 |
-| `bswp_map.py` | 정전용량 지도 화면 + CSV 기록 |
-| `captivate_hid.py` | HID 브리지 설정과 CapTIvate 패킷 해석을 맡아요. 단독으로 `python captivate_hid.py`를 실행하면 패킷을 글자로 찍고, `--raw`를 붙이면 16진수로 찍어요 |
-| `stent_ber.py` | 스텐트 → 버튼 1 BER 시험, 송신·수신·실시간 창·분석을 명령 하나로 (같은 노트북) |
-| `cap_ook_rx.py` | 스텐트 OOK 수신 + BER (위 절). 송신은 `../transceiver/cap_ook_tx.py` |
-| `test_cap_ook_rx.py` | 수신 분석 합성 자가검증 |
-| `dual_ber.py` | 두 전극(S1 + P) 태블릿 BER, FSK/OOK |
-| `plot_rate_sweep.py` | BER vs 속도 · 스캔률 그림 |
-| `plot_ook_fsk.py`, `plot_fsk_advantage.py`, `plot_dual.py` | OOK vs FSK 비교 그림들 |
-| `data/` | 기록된 CSV, `capook_*`·`stentber_*`·`dual_*` 녹화·결과 폴더 |
+| `run_bswp_map.command` | Double-click launcher. Uses the Python in `~/.venvs/galvanic` |
+| `bswp_map.py` | Capacitance map GUI + CSV recording |
+| `captivate_hid.py` | HID bridge setup and CapTIvate packet parsing. Run on its own (`python captivate_hid.py`) it prints packets as text, or as hex with `--raw` |
+| `stent_ber.py` | Stent → touchscreen BER test: transmit, receive, live window and analysis in one command (same laptop) |
+| `cap_ook_rx.py` | Stent OOK receiver + BER (section above). The transmitter is `../transceiver/cap_ook_tx.py` |
+| `test_cap_ook_rx.py` | Synthetic self-test of the receiver analysis |
+| `dual_ber.py` | Two-electrode (S1 + P) tablet BER, FSK/OOK |
+| `plot_rate_sweep.py` | BER vs bit rate and scan rate figure |
+| `plot_ook_fsk.py`, `plot_fsk_advantage.py`, `plot_dual.py` | OOK vs FSK comparison figures |
+| `data/` | Recorded CSVs and `capook_*`, `stentber_*`, `dual_*` recording/result folders |
 
-**이 폴더 밖에 있는 의존 파일:** 송신과 일부 분석은 옆 폴더의 코드를 가져다 써요. 이 저장소만 받으면 `bswp_map.py`와 `captivate_hid.py`만 단독으로 돌아가요.
-- `../transceiver/cap_ook_tx.py`, `../transceiver/trx_recip.py`: TeensyTRX 송신
-- `../transceiver/firmware/TeensyTRX/`: 펌웨어
+**Dependencies outside this folder:** transmission and part of the analysis import code from sibling folders. With this repository alone, only `bswp_map.py` and `captivate_hid.py` run standalone.
+- `../transceiver/cap_ook_tx.py`, `../transceiver/trx_recip.py`: TeensyTRX transmitter
+- `../transceiver/firmware/TeensyTRX/`: firmware
 - `../dds_signal_gen/ook_rx.py`: PRBS
 
-## 통신 메모 (2026-10-14 실측)
-- HID 브리지에는 HID 인터페이스가 두 개 있어요.
-  - 0번은 데이터용이에요.
-  - 1번은 `HB ...` 텍스트 명령으로 설정하는 콘솔이에요.
-- 보고서 형식은 `[3Fh, 길이, 데이터…]`예요.
-- 공장 상태 브리지는 `PACKET UART`예요. 그런데 기본 데모는 BULK I2C(주소 0x0A)라서, 프로그램이 켤 때마다 `HB MODE PACKET I2C`로 바꿔요. 저장은 하지 않아서 USB를 뽑으면 원래대로 돌아가요.
-- 스캔 한 번마다 패킷 9개가 와요. 보드는 센서 순서대로 보내요: 버튼(사이클 2개 + 센서) → 근접(사이클 + 센서) → 슬라이더(사이클 + 센서) → 휠(사이클 + 센서).
-- 센서 ID는 0 버튼, 1 근접, 2 슬라이더, 3 휠이에요. Design Center가 센서 이름을 알파벳순으로 매긴 거예요.
-- 슬라이더·휠 해상도는 파라미터 패킷 `92h`로 물어서 받아요. 실측값은 **슬라이더 1000, 휠 100**이에요.
-- 터치 임계값은 `83h`(사이클·소자별)로 받아요. 단위는 LTA의 1/128이에요.
-- 근접 임계값은 `82h`(센서별)로 받고, 단위는 카운트예요.
-- 기준선 다시 잡기는 `8Eh`(Force Re-Calibrate)예요. 보드가 자고 있어도 I2C 쓰기가 들어가면 깨어나서 처리해요.
-  - 이때 보드는 잠깐 깨서 처리만 하고 다시 자요. 스캔은 시작하지 않아요.
-  - 자는 동안에는 답이 늦게, 몰려서 나와요.
-- 화면 그리기 방식:
-  - 패널은 0.4 mm 픽셀 그림 한 장(`imshow`)이에요. ThermoVein의 `maxtouch_cap_heatmap.py`와 같은 방식이에요.
-  - 안 바뀌는 축·범례·색 막대는 배경으로 떠 두고, 바뀌는 것만 덧그려요(blit). 축이나 색 범위가 바뀔 때만 전체를 다시 그려요.
-  - 프레임 사이에 15 ms 이상 비워 둬서 클릭이 처리되게 해요.
-  - 실측: 프레임당 16 ms, 27 fps, 이벤트 지연 중앙값 6 ms.
-  - 예전 버전은 프레임마다 도형 30개를 다시 그렸어요(40~50 ms). 그런데 40 ms마다 새로 그리느라 클릭이 안 먹었어요. 상태 글씨 길이가 바뀔 때마다 창 크기도 바뀌었어요.
-- 기준선 다시 잡기(`8Eh`)는 요청 하나에 패널 전체를 다시 보정해요. 그동안 보드가 약 0.5초 스캔을 멈춰요.
-- 계속 깨워 두기는 컨트롤러 파라미터로 해요.
-  - `C5`(비활성 타임아웃) = 65535
-  - `C4`(절전 중 깨는 간격) = 1
-  - 원래 값은 32 / 5예요. 같은 줄의 `C2`는 스캔 간격 33 ms, `C3`는 절전 중 스캔 간격 100 ms예요.
-  - 보드 RAM에만 있어서 리셋하면 원래대로 돌아가요. 창을 닫을 때는 일부러 되돌리지 않아요.
-  - 실측: 바꾼 뒤 한 번 깨니, 손 없이 60초 동안 30 Hz로 끊김 없이 왔어요.
-- 데모 설정값(실측):
-  - 측정 목표 카운트: 버튼 250, 근접 800, 슬라이더 600, 휠 500
-  - LTA 필터 beta: 7
-  - 근접·터치 중 LTA 멈춤: 켜짐
-- 휠 ● 표시는 "위치 0 = W0 가운데(위), 값이 W0→W1→W2 방향(시계 방향)으로 커진다"고 가정하고 그렸어요. 실제로 돌려 보고 방향이 반대면 `bswp_map.py`의 `ang = ...` 한 줄을 고치면 돼요.
-- 패킷 형식 출처: TI CapTIvate Technology Guide
+## Communication notes (measured 2026-10-14)
+- The HID bridge has two HID interfaces.
+  - Interface 0 is for data.
+  - Interface 1 is a console configured with `HB ...` text commands.
+- Report format: `[3Fh, length, data…]`.
+- The bridge ships in `PACKET UART` mode, but the default demo uses BULK I2C (address 0x0A), so the program switches it to `HB MODE PACKET I2C` every time it starts. This is not saved, so it reverts when USB is unplugged.
+- Each scan delivers 9 packets, in sensor order: buttons (2 cycles + sensor) → proximity (cycle + sensor) → slider (cycle + sensor) → wheel (cycle + sensor).
+- Sensor IDs: 0 buttons, 1 proximity, 2 slider, 3 wheel. Design Center assigned them in alphabetical order of the sensor names.
+- Slider and wheel resolution are queried with parameter packet `92h`. Measured: **slider 1000, wheel 100**.
+- Touch thresholds come from `83h` (per cycle and element), in units of 1/128 of LTA.
+- Proximity thresholds come from `82h` (per sensor), in counts.
+- Baseline re-capture is `8Eh` (Force Re-Calibrate). Even when the board is asleep, an I2C write wakes it up to process the request.
+  - The board then only wakes briefly to process it and goes back to sleep; it does not start scanning.
+  - While asleep, replies come late and in bursts.
+- Rendering:
+  - The panel is one image of 0.4 mm pixels (`imshow`), the same approach as ThermoVein's `maxtouch_cap_heatmap.py`.
+  - Static axes, legends and colour bars are cached as the background and only the changing parts are redrawn (blit). Everything is redrawn only when the axes or colour range change.
+  - At least 15 ms is left between frames so that clicks get processed.
+  - Measured: 16 ms per frame, 27 fps, median event latency 6 ms.
+  - The old version redrew 30 shapes every frame (40-50 ms). Redrawing every 40 ms left no time for clicks, and the window resized whenever the length of the status text changed.
+- One baseline re-capture request (`8Eh`) recalibrates the whole panel. The board pauses scanning for about 0.5 s meanwhile.
+- Keeping the board awake uses controller parameters:
+  - `C5` (inactivity timeout) = 65535
+  - `C4` (wake-up interval during sleep) = 1
+  - The original values are 32 / 5. In the same group, `C2` is the active scan period (33 ms) and `C3` the scan period during sleep (100 ms).
+  - These live only in the board's RAM and revert on reset. They are deliberately not restored when the window closes.
+  - Measured: after changing them and waking the board once, data arrived at 30 Hz without gaps for 60 s with no hand present.
+- Demo settings (measured):
+  - Conversion count: buttons 250, proximity 800, slider 600, wheel 500
+  - LTA filter beta: 7
+  - LTA halt during proximity/touch: on
+- The wheel ● marker assumes "position 0 = centre of W0 (top), increasing in the W0→W1→W2 direction (clockwise)". If turning the wheel shows the opposite direction, fix the single `ang = ...` line in `bswp_map.py`.
+- Packet format source: TI CapTIvate Technology Guide
   - Software Library > Communications Module > Protocol Layer
   - CAPTIVATE-PGMR > HID Bridge
 
-## 다음에 할 수 있는 것
-- **절전 끄기 / 스캔 속도 바꾸기**: 펌웨어를 다시 구워야 해요. Code Composer Studio에서 BSWP 예제를 열고 `CAPT_UserConfig.c`의 `ui16ActiveModeScanPeriod`(지금 33 ms)와 wake-on-proximity 설정을 바꾸면 돼요.
-- **직접 만든 전극**: 패널을 빼고 MCU 보드 커넥터 핀(CAP0.0~CAP3.3)에 전선으로 전극을 달아요. 같은 데모 펌웨어로는 원래 위치의 이름으로 보여요.
+## Possible next steps
+- **Disabling sleep / changing the scan rate permanently**: requires reflashing the firmware. Open the BSWP example in Code Composer Studio and change `ui16ActiveModeScanPeriod` (currently 33 ms) and the wake-on-proximity setting in `CAPT_UserConfig.c`. (For experiments, the scan period `C2` and keep-awake `C4`/`C5` are already changed at run time through parameter packets, as described above.)
+- **Custom electrodes**: remove the panel and wire electrodes to the MCU board connector pins (CAP0.0-CAP3.3). With the same demo firmware they appear under the names of their original positions.
