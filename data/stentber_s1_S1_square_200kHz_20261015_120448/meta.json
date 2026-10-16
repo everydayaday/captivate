@@ -1,0 +1,77 @@
+{
+ "label": "s1",
+ "probe": false,
+ "scan_ms_set": 20,
+ "conv_count": 0,
+ "link": {
+  "carrier": 200000.0,
+  "bps": 5.0,
+  "payload": 127,
+  "prbs": 7,
+  "wave": "square",
+  "seconds": 17.0,
+  "probe_carriers": [
+   100,
+   300,
+   1012.5,
+   2012.5,
+   4012.5,
+   8012.5,
+   20000.0,
+   50000.0,
+   163000.0,
+   500000.0,
+   1000000.0,
+   2000000.0,
+   3000000.0,
+   4000000.0
+  ],
+  "probe_block": 1.0,
+  "probe_reps": 3
+ },
+ "plan": {
+  "kind": "cap_ook",
+  "carrier_hz": 200000.03278255463,
+  "wave": "square",
+  "bps": 5.0,
+  "bit_us": 200000,
+  "payload": 127,
+  "prbs": 7,
+  "frame_bits": 170,
+  "header_bits": 27,
+  "frame_s": 34.0,
+  "n_frames": 1,
+  "total_s": 34.0
+ },
+ "board_orig": {
+  "C2": 33,
+  "89": 1,
+  "8D": 1,
+  "88": 3960,
+  "9B": 20,
+  "sensor_id": 2
+ },
+ "board_set": {
+  "C2": 20,
+  "89": 0,
+  "8D": 0,
+  "88": 65535,
+  "9B": 1000
+ },
+ "t_first_unix": 1792080429.17023,
+ "t_rec0_unix": 1792080424.51386,
+ "upload": {
+  "segs": 1,
+  "words": 170,
+  "events": 170,
+  "total_us": 34000000,
+  "checksum": 165556439
+ },
+ "electrode": "S1",
+ "cycle_names": [
+  "S0",
+  "S1",
+  "S2",
+  "S3"
+ ]
+}
